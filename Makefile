@@ -1,9 +1,9 @@
 CC=g++
-CFLAGS=-c -Wall
+CFLAGS=-Wall -std=c++11
 
 all: solver
 
-solver: 
+solver: solver.cpp
 	$(CC) $(CFLAGS) solver.cpp -o solver
 
 clean:
