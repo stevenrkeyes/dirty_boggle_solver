@@ -25,7 +25,7 @@ std::unordered_set<std::string> load_words(const char *filename)
         std::string word = *i;
         // "#" indicates a comment
         if (word[0] != '#') {
-            std::transform(word.begin(), word.end(), word.begin(),::toupper);
+            std::transform(word.begin(), word.end(), word.begin(), ::toupper);
             words.insert(word);
         }
     }
@@ -118,12 +118,50 @@ std::vector<std::string> get_boggle_words(std::string boggle_board[WIDTH][HEIGHT
     return found_words;
 }
 
+void print_boggle_board(std::string boggle_board[WIDTH][HEIGHT]) {
+    for (int j = 0; j < HEIGHT; ++j) {
+        for (int i = 0; i < WIDTH; ++i) {
+            std::string letter = boggle_board[i][j];
+            if (letter != "QU") {
+                std::cout << letter << "  ";
+            } else {
+                std::cout << letter << " ";
+            }
+        }
+        std::cout << "\r\n";
+    }
+}
+
 // Get the boggle board from the user and return it via boggle_board as an output parameter
 void get_boggle_board(std::string boggle_board[WIDTH][HEIGHT]) {
-    std::string board[WIDTH][HEIGHT] = {{"L","T","E","F"},
-                                        {"E","A","R","Y"},
-                                        {"W","T","A","O"},
-                                        {"M","E","S","H"}};
+    std::cout << "Please enter the boggle tiles in reading order.\r\n";
+    
+    std::string board[WIDTH][HEIGHT] = {{" "," "," "," "},
+                                        {" "," "," "," "},
+                                        {" "," "," "," "},
+                                        {" "," "," "," "}};
+    std::string input_letter;
+
+    for (int j = 0; j < HEIGHT; ++j) {
+        for (int i = 0; i < WIDTH; ++i) {
+            std::cout << "\nNext letter: ";
+            std::cin >> input_letter;
+            std::cout << "\n";
+            // ok this seems a little silly, there's gotta be a better way to uppercase a
+            // letter in c++
+            std::transform(input_letter.begin(),
+                           input_letter.end(),
+                           input_letter.begin(),
+                           ::toupper);
+            if (input_letter == "Q") {
+                input_letter = "QU";
+            }
+            board[i][j] = input_letter;
+            print_boggle_board(board);
+        }
+    }
+
+    
     std::copy(&board[0][0], &board[0][0] + WIDTH * HEIGHT, &boggle_board[0][0]);
 }
 
@@ -136,10 +174,16 @@ struct compare_length {
 
 int main()
 {
+    std::cout << "Welcome to the Dirty Boggle Solver\n";
+
     std::string boggle_board[WIDTH][HEIGHT];
     get_boggle_board(boggle_board);
 
+    std::cout << "Finding dirty words...\n";
+
     std::vector<std::string> found_words = get_boggle_words(boggle_board);
+
+    std::cout << "Words found:\n";
 
     compare_length c;
     std::sort(found_words.begin(), found_words.end(), c);
@@ -147,11 +191,10 @@ int main()
     for (std::vector<std::string>::const_iterator i = found_words.begin();
          i != found_words.end();
          ++i) {
-        std::cout << *i << " ";
+        std::cout << *i << ", ";
     }
 
     std::cout << "\n";
 
-    std::cout << "Welcome to the Dirty Boggle Solver\n";
     return 0;
 }
