@@ -4,37 +4,143 @@
 #include <vector>
 #include <iterator>
 #include <unordered_set>
+#include <locale>
+#include <algorithm>
 
 #define WIDTH  4
 #define HEIGHT 4
 
+// Load words from a dictionary file (a list of words, one word per line) into a hash table
 std::unordered_set<std::string> load_words(const char *filename)
 {
     std::ifstream file(filename);
 
     std::unordered_set<std::string> words;
 
-    std::copy(std::istream_iterator<std::string>(file),
+    std::locale loc;
+
+    for (std::istream_iterator<std::string> i = std::istream_iterator<std::string>(file); 
+        i != std::istream_iterator<std::string>();
+        ++i) {
+        std::string word = *i;
+        // "#" indicates a comment
+        if (word[0] != "#") {
+            std::transform(word.begin(), word.end(), word.begin(),::toupper);
+            words.insert(word);
+        }
+    }
+
+    /*std::copy(std::istream_iterator<std::string>(file),
               std::istream_iterator<std::string>(),
-              std::inserter(words, words.end()));
+              std::inserter(words, words.end()));*/
     return words;
 }
 
+// Determine whether a string is a word in the supplied dictionary
+// Did some tests: doing a linear list search to check if the word exists takes OTO 3 ms,
+// but doing a hash table lookup takes OTO 200 ns, which is enough to search every 
+// possible boggle string.
 bool is_word(std::string str)
 {
+    // static so that we only load the words into the hash table once
     static std::unordered_set<std::string> words = load_words("/usr/share/dict/words");
     return words.end() != words.find(str);
 }
 
+// Finds boggle words starting from a given tile (or string of tiles) (via recursion)
+// The string of previous tiles is represented as a grid of visited tiles, the prefix that
+// those tiles become, and the coordinates (i, j) of the next to visit tile.
+// Note: this checks about 12 million possible strings.
+std::vector<std::string> get_boggle_words_with_prefix(std::string boggle_board[WIDTH][HEIGHT],
+                                                      bool past_visited_tiles[WIDTH][HEIGHT],
+                                                      int i,
+                                                      int j,
+                                                      std::string prefix) {
+    bool visited_tiles[WIDTH][HEIGHT];
+    std::copy(&past_visited_tiles[0][0],
+              &past_visited_tiles[0][0] + WIDTH * HEIGHT,
+              &visited_tiles[0][0]);
+    visited_tiles[i][j] = true;
+    prefix.append(boggle_board[i][j]);
+
+    // initialize an array to store any found words
+    std::vector<std::string> found_words;
+
+    if (is_word(prefix)) {
+        found_words.push_back(prefix);
+    }
+
+    // Check each adjacent tile to the most recently visited tile
+    for (int row = i - 1; row <= i + 1 && row < HEIGHT; ++row) {
+        for (int col = j - 1; col <= j + 1 && col < WIDTH; ++col) {
+            if (row >= 0 && col >= 0 && !visited_tiles[row][col]) {
+                std::vector<std::string> longer_found_words;
+                // find any words that start with the current prefix
+                longer_found_words = get_boggle_words_with_prefix(boggle_board,
+                                                                  visited_tiles,
+                                                                  row,
+                                                                  col,
+                                                                  prefix);
+                // concatenate them to the current list of found words
+                found_words.insert(found_words.end(),
+                                   longer_found_words.begin(),
+                                   longer_found_words.end());
+            }
+        }
+    }
+
+    return found_words;
+}
+
+// Finds all words on a boggle board by calling the recursive function
+// get_boggle_words_with_prefix
+std::vector<std::string> get_boggle_words(std::string boggle_board[WIDTH][HEIGHT]) {
+    bool visited_tiles[WIDTH][HEIGHT] = {{false}};
+    std::string prefix = "";
+
+    std::vector<std::string> found_words;
+    std::vector<std::string> new_found_words;
+
+    // find words starting from each tile
+    for (int i = 0; i < WIDTH; ++i) {
+        for (int j = 0; j < HEIGHT; ++j) {
+            new_found_words = get_boggle_words_with_prefix(boggle_board,
+                                                           visited_tiles,
+                                                           i,
+                                                           j,
+                                                           prefix);
+            found_words.insert(found_words.end(),
+                               new_found_words.begin(),
+                               new_found_words.end());
+        }
+    }
+
+    return found_words;
+}
+
+// Get the boggle board from the user and return it via boggle_board as an output parameter
+void get_boggle_board(std::string boggle_board[WIDTH][HEIGHT]) {
+    std::string board[WIDTH][HEIGHT] = {{"F","H","N","O"},
+                                        {"Q","T","V","X"},
+                                        {"A","E","O","S"},
+                                        {"R","N","A","E"}};
+    std::copy(&board[0][0], &board[0][0] + WIDTH * HEIGHT, &boggle_board[0][0]);
+}
+
 int main()
 {
-    std::string foo = "blooooop";
+    std::string boggle_board[WIDTH][HEIGHT];
+    get_boggle_board(boggle_board);
 
-    // Did some tests: doing a linear list search to check if the word exists takes OTO 3 ms,
-    // but doing a hash table lookup takes OTO 200 ns, which is enough to search every 
-    // possible boggle string.
+    std::vector<std::string> found_words = get_boggle_words(boggle_board);
 
-    is_word(foo);
+    for (std::vector<std::string>::const_iterator i = found_words.begin();
+         i != found_words.end();
+         ++i) {
+        std::cout << *i << " ";
+    }
+
+    std::cout << "\n";
 
     std::cout << "Welcome to the Dirty Boggle Solver\n";
     return 0;
