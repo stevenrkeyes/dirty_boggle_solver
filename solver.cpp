@@ -24,7 +24,7 @@ std::unordered_set<std::string> load_words(const char *filename)
         ++i) {
         std::string word = *i;
         // "#" indicates a comment
-        if (word[0] != "#") {
+        if (word[0] != '#') {
             std::transform(word.begin(), word.end(), word.begin(),::toupper);
             words.insert(word);
         }
@@ -43,7 +43,7 @@ std::unordered_set<std::string> load_words(const char *filename)
 bool is_word(std::string str)
 {
     // static so that we only load the words into the hash table once
-    static std::unordered_set<std::string> words = load_words("/usr/share/dict/words");
+    static std::unordered_set<std::string> words = load_words("dirty_words");
     return words.end() != words.find(str);
 }
 
@@ -120,12 +120,19 @@ std::vector<std::string> get_boggle_words(std::string boggle_board[WIDTH][HEIGHT
 
 // Get the boggle board from the user and return it via boggle_board as an output parameter
 void get_boggle_board(std::string boggle_board[WIDTH][HEIGHT]) {
-    std::string board[WIDTH][HEIGHT] = {{"F","H","N","O"},
-                                        {"Q","T","V","X"},
-                                        {"A","E","O","S"},
-                                        {"R","N","A","E"}};
+    std::string board[WIDTH][HEIGHT] = {{"L","T","E","F"},
+                                        {"E","A","R","Y"},
+                                        {"W","T","A","O"},
+                                        {"M","E","S","H"}};
     std::copy(&board[0][0], &board[0][0] + WIDTH * HEIGHT, &boggle_board[0][0]);
 }
+
+// Oh my
+struct compare_length {
+    bool operator()(const std::string& first, const std::string& second) {
+        return first.size() > second.size();
+    }
+};
 
 int main()
 {
@@ -133,6 +140,9 @@ int main()
     get_boggle_board(boggle_board);
 
     std::vector<std::string> found_words = get_boggle_words(boggle_board);
+
+    compare_length c;
+    std::sort(found_words.begin(), found_words.end(), c);
 
     for (std::vector<std::string>::const_iterator i = found_words.begin();
          i != found_words.end();
