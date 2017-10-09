@@ -1,3 +1,7 @@
 Dirty Boggle Solver
 
 This is a solver for the game Boggle and variants (i.e. Wordstreak), but it only finds dirty words.
+
+USAGE:
+~$ make
+~$ ./solver
