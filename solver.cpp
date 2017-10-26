@@ -6,9 +6,12 @@
 #include <unordered_set>
 #include <locale>
 #include <algorithm>
+#include <chrono>
 
 #define WIDTH  4
 #define HEIGHT 4
+
+#define TIME_DIAGNOSTICS
 
 // Load words from a dictionary file (a list of words, one word per line) into a hash table
 std::unordered_set<std::string> load_words(const char *filename)
@@ -181,7 +184,17 @@ int main()
 
     std::cout << "Finding dirty words...\n";
 
+    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
     std::vector<std::string> found_words = get_boggle_words(boggle_board);
+
+    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+
+    int duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+
+    #ifdef TIME_DIAGNOSTICS
+    std::cout << "Executed in " << duration << " milliseconds\n";
+    #endif //TIME_DIAGNOSTICS
 
     std::cout << "Words found:\n";
 
