@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <set>
 #include <iterator>
 #include <unordered_set>
 #include <locale>
@@ -184,7 +185,7 @@ int main()
 
     std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-    std::vector<std::string> found_words = get_boggle_words(boggle_board);
+    std::vector<std::string> all_found_words = get_boggle_words(boggle_board);
 
     std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 
@@ -196,10 +197,12 @@ int main()
 
     std::cout << "Words found:\n";
 
-    compare_length c;
-    std::sort(found_words.begin(), found_words.end(), c);
+    // all_found_words contains duplicates if the word was was found in different ways
+    std::set<std::string, compare_length> found_words(all_found_words.begin(),
+                                                      all_found_words.end());
+    //std::sort(all_found_words.begin(), found_words.end(), c);
 
-    for (std::vector<std::string>::const_iterator i = found_words.begin();
+    for (std::set<std::string>::const_iterator i = found_words.begin();
          i != found_words.end();
          ++i) {
         std::cout << *i << ", ";
