@@ -33,9 +33,6 @@ std::unordered_set<std::string> load_words(const char *filename)
         }
     }
 
-    /*std::copy(std::istream_iterator<std::string>(file),
-              std::istream_iterator<std::string>(),
-              std::inserter(words, words.end()));*/
     return words;
 }
 
