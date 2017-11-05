@@ -44,6 +44,7 @@ bool is_word(std::string str)
 {
     // static so that we only load the words into the hash table once
     static std::unordered_set<std::string> words = load_words("dirty_words");
+    //static std::unordered_set<std::string> words = load_words("/usr/share/dict/words");
     return words.end() != words.find(str);
 }
 
