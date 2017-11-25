@@ -2,6 +2,8 @@ import random
 
 import subprocess
 
+random.seed(42)
+
 # English letters by frequency; source: Cornell University Math Explorer's Project
 # https://www.math.cornell.edu/~mec/2003-2004/cryptography/subs/frequencies.html
 letter_weights = {'E': 12.02,
