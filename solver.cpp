@@ -3,74 +3,143 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <iterator>
-#include <unordered_set>
 #include <locale>
 #include <algorithm>
 #include <chrono>
+
+#include "trie.h"
 
 #define WIDTH  4
 #define HEIGHT 4
 
 #define TIME_DIAGNOSTICS
 
-// Load words from a dictionary file (a list of words, one word per line) into a hash table
-std::unordered_set<std::string> load_words(const char *filename)
+// Function to check if a word has a Q in it without being QU because these
+// words are not present in certain versions of Boggle
+bool has_independent_Q(std::string s)
+{
+    std::string::iterator c_iter;
+
+    for (c_iter = s.begin(); c_iter != s.end(); ++c_iter)
+    {
+        if (*c_iter == 'Q')
+        {
+            if (*(c_iter + 1) != 'U')
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+// Strip all non-letters from the word (spaces, hyphens, punctuation, etc)
+std::string strip(const std::string &s) {
+    std::string result;
+
+    result.reserve(s.length());
+    std::remove_copy_if(s.begin(),
+                        s.end(),
+                        std::back_inserter(result),
+                        std::not1(std::ptr_fun(isalpha)));
+
+    return result;
+}
+
+// Convert a word s into an array of capitalized letter strings
+// This is necessary because we want to represent QU as one unit and also
+// ignore non-letters
+std::vector<std::string> vectorize(std::string s)
+{
+    // "#" indicates a comment
+    if (s[0] == '#') {
+        return std::vector<std::string>();
+    }
+    // Make uppercase
+    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+    // Remove non-letters
+    std::string clean_string = strip(s);
+    // The boggle board doesn't contain independent Q tiles, so words with Q
+    // without U can be ignored
+    if (has_independent_Q(clean_string))
+    {
+        return std::vector<std::string>();
+    }
+
+    std::vector<std::string> v;
+    std::string::iterator c_iter;
+
+    for (c_iter = clean_string.begin(); c_iter != clean_string.end(); ++c_iter)
+    {
+        if (*c_iter == 'Q')
+        {
+            v.push_back("QU");
+            ++c_iter;
+        }
+        else
+        {
+            v.push_back(std::string(1, *c_iter));
+        }
+    }
+    return v;
+}
+
+// Load words from a dictionary file (a list of words, one word per line) into
+// a prefix tree
+trie::Trie<std::string> load_words(const char *filename)
 {
     std::ifstream file(filename);
-
-    std::unordered_set<std::string> words;
-
+    trie::Trie<std::string> words;
     std::locale loc;
+    std::string line;
 
-    for (std::istream_iterator<std::string> i = std::istream_iterator<std::string>(file); 
-        i != std::istream_iterator<std::string>();
-        ++i) {
-        std::string word = *i;
-        // "#" indicates a comment
-        if (word[0] != '#') {
-            std::transform(word.begin(), word.end(), word.begin(), ::toupper);
-            words.insert(word);
+    while (std::getline(file, line))
+    {
+        std::vector<std::string> vectorized_word = vectorize(line);
+        if (!vectorized_word.empty())
+        {
+            words.insert(vectorized_word);
         }
     }
 
     return words;
 }
 
-// Determine whether a string is a word in the supplied dictionary
-// Did some tests: doing a linear list search to check if the word exists takes OTO 3 ms,
-// but doing a hash table lookup takes OTO 200 ns, which is enough to search every 
-// possible boggle string.
-bool is_word(std::string str)
-{
-    // static so that we only load the words into the hash table once
-    static std::unordered_set<std::string> words = load_words("dirty_words");
-    //static std::unordered_set<std::string> words = load_words("/usr/share/dict/words");
-    return words.end() != words.find(str);
-}
-
-// Finds boggle words starting from a given tile (or string of tiles) (via recursion)
+// Finds boggle words starting from a given tile (or string of tiles)
+// (via recursion, guided by a prefix tree)
 // The string of previous tiles is represented as a grid of visited tiles, the prefix that
 // those tiles become, and the coordinates (i, j) of the next to visit tile.
-// Note: this checks about 12 million possible strings.
 std::vector<std::string> get_boggle_words_with_prefix(std::string boggle_board[WIDTH][HEIGHT],
                                                       bool past_visited_tiles[WIDTH][HEIGHT],
                                                       int i,
                                                       int j,
-                                                      std::string prefix) {
+                                                      std::string prefix,
+                                                      trie::Node<std::string> previous_node) {
     bool visited_tiles[WIDTH][HEIGHT];
     std::copy(&past_visited_tiles[0][0],
               &past_visited_tiles[0][0] + WIDTH * HEIGHT,
               &visited_tiles[0][0]);
     visited_tiles[i][j] = true;
-    prefix.append(boggle_board[i][j]);
 
     // initialize an array to store any found words
     std::vector<std::string> found_words;
 
-    if (is_word(prefix)) {
+    // check if the new letter is in the children of the previous prefix node
+    // if not, stop looking because it's not in the prefix tree of valid words
+    trie::Node<std::string> *current_node = previous_node.findChild(boggle_board[i][j]);
+    if (!current_node) {
+        return found_words;
+    }
+
+    // otherwise, append the new letter to the prefix
+    prefix.append(boggle_board[i][j]);
+
+    // also, check if that child itself completes a word
+    if (current_node->wordMarker()) {
         found_words.push_back(prefix);
     }
+    // and continue searching
 
     // Check each adjacent tile to the most recently visited tile
     for (int row = i - 1; row <= i + 1 && row < HEIGHT; ++row) {
@@ -82,7 +151,8 @@ std::vector<std::string> get_boggle_words_with_prefix(std::string boggle_board[W
                                                                   visited_tiles,
                                                                   row,
                                                                   col,
-                                                                  prefix);
+                                                                  prefix,
+                                                                  *current_node);
                 // concatenate them to the current list of found words
                 found_words.insert(found_words.end(),
                                    longer_found_words.begin(),
@@ -103,6 +173,11 @@ std::vector<std::string> get_boggle_words(std::string boggle_board[WIDTH][HEIGHT
     std::vector<std::string> found_words;
     std::vector<std::string> new_found_words;
 
+    // Use a prefix tree of dictionary words to know when to stop searching down a path
+    //trie::Trie<std::string> words = load_words("/usr/share/dict/words");
+    trie::Trie<std::string> words = load_words("dirty_words");
+    trie::Node<std::string> root_node = *words.getRootNode();
+
     // find words starting from each tile
     for (int i = 0; i < WIDTH; ++i) {
         for (int j = 0; j < HEIGHT; ++j) {
@@ -110,7 +185,8 @@ std::vector<std::string> get_boggle_words(std::string boggle_board[WIDTH][HEIGHT
                                                            visited_tiles,
                                                            i,
                                                            j,
-                                                           prefix);
+                                                           prefix,
+                                                           root_node);
             found_words.insert(found_words.end(),
                                new_found_words.begin(),
                                new_found_words.end());
@@ -162,7 +238,6 @@ void get_boggle_board(std::string boggle_board[WIDTH][HEIGHT]) {
             print_boggle_board(board);
         }
     }
-
     
     std::copy(&board[0][0], &board[0][0] + WIDTH * HEIGHT, &boggle_board[0][0]);
 }
