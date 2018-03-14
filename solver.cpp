@@ -242,10 +242,13 @@ void get_boggle_board(std::string boggle_board[WIDTH][HEIGHT]) {
     std::copy(&board[0][0], &board[0][0] + WIDTH * HEIGHT, &boggle_board[0][0]);
 }
 
-// Oh my
-struct compare_length {
+struct compare_length_then_alphabet_order {
     bool operator()(const std::string& first, const std::string& second) {
-        return first.size() > second.size();
+        if (first.size() == second.size()) {
+            return first < second;
+        } else {
+            return first.size() > second.size();
+        }
     }
 };
 
@@ -273,8 +276,8 @@ int main()
     std::cout << "Words found:\n";
 
     // all_found_words contains duplicates if the word was was found in different ways
-    std::set<std::string, compare_length> found_words(all_found_words.begin(),
-                                                      all_found_words.end());
+    std::set<std::string, compare_length_then_alphabet_order> found_words(all_found_words.begin(),
+                                                                          all_found_words.end());
     //std::sort(all_found_words.begin(), found_words.end(), c);
 
     for (std::set<std::string>::const_iterator i = found_words.begin();
